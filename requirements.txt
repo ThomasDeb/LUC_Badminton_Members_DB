@@ -1,0 +1,11 @@
+Flask==3.0.3
+Flask_Login==0.6.3
+gunicorn==23.0.0
+mysql-connector-python ==9.0.0
+pandas==2.2.3
+pycountry==24.6.1
+python-dotenv==1.0.1
+Requests==2.32.3
+selenium==4.25.0
+SQLAlchemy==2.0.35
+urllib3==2.2.2

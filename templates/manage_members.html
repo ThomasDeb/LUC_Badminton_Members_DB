@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LUC Badminton</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+    <style>
+        /* Ensure table takes full width without horizontal scrolling */
+        .table-responsive {
+            overflow-x: unset !important;
+        }
+
+        /* Prevent DataTable from adding extra scrollbars */
+        table.dataTable {
+            width: 100% !important;
+        }
+    </style>
+</head>
+<body>
+<div class="container-fluid mt-5">
+    <h1>Base de données membres LUC Badminton</h1>
+
+    <!-- Flash messages for success or error notifications -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <div class="d-flex mb-3">
+        <!-- Add Member Button that triggers a modal -->
+        <button class="btn btn-success mx-1" data-toggle="modal" data-target="#addMemberModal">Ajouter membre</button>
+
+        <!-- Button to download the SQL table as a CSV -->
+        <a href="{{ url_for('download_csv') }}" class="btn btn-primary mx-1">Télécharger CSV</a>
+
+        <!-- Button to download the list of membership fees as a CSV -->
+        <a href="{{ url_for('download_fees') }}" class="btn btn-primary mx-1">Télécharger cotisations</a>
+
+        <!-- Add logout button -->
+        <form action="{{ url_for('logout') }}" method="POST" style="display:inline;">
+            <button class="btn btn-danger mx-1">Logout</button>
+        </form>
+    </div>
+
+    <button id="toggle-columns" class="btn btn-info">Afficher/Masquer colonnes supplémentaires</button>
+
+    <!-- Add Member Modal -->
+    <div class="modal fade" id="addMemberModal" tabindex="-1" role="dialog" aria-labelledby="addMemberModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addMemberModalLabel">Ajouter nouveau membre</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form method="POST">
+                        <div class="form-group">
+                            <label>Nom</label>
+                            <input type="text" name="nom" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Prénom</label>
+                            <input type="text" name="prenom" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" name="email" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Téléphone</label>
+                            <input type="text" name="telephone" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Date de naissance</label>
+                            <input type="date" name="date_naissance" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Adresse</label>
+                            <input type="text" name="adresse" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Code postal</label>
+                            <input type="text" name="code_postal" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Ville</label>
+                            <input type="text" name="ville" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Genre</label>
+                            <select name="genre" class="form-control">
+                                <option value="Masculin" selected="selected">Masculin</option>
+                                <option value="Feminin">Féminin</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Nationalité</label>
+                            <select name="nationalite" class="form-control">
+                                {% for country in countries %}
+                                <option value="{{ country }}" {% if country == 'Switzerland' %} selected {% endif %}>
+                                {{ country }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Langue</label>
+                            <select name="langue" class="form-control">
+                                <option value="Francais" selected="selected">Français</option>
+                                <option value="Anglais">Anglais</option>
+                                <option value="Allemand">Allemand</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Date d'inscription</label>
+                            <input type="date" id="date_inscription" name="date_inscription" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Statut</label>
+                            <select name="statut" class="form-control">
+                                <option value="Etudiant" selected="selected">Etudiant</option>
+                                <option value="Collaborateur">Collaborateur</option>
+                                <option value="Autre">Autre</option>
+                                <option value="Senior">Senior</option>
+                                <option value="Passif">Passif</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Détail statut</label>
+                            <input type="text" name="detail_statut" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Pourcentage cotisation</label>
+                            <select name="pourcentage_cotisation" class="form-control">
+                                <option value="100" selected="selected">100%</option>
+                                <option value="50">50%</option>
+                                <option value="0">0%</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Statut Swissbad</label>
+                            <select name="statut_swissbad" class="form-control">
+                                <option value="LicenceAdulte">Licence adulte</option>
+                                <option value="LicencePlusAdulte">Licence plus adulte</option>
+                                <option value="LicencePlusJunior">Licence plus junior</option>
+                                <option value="LicenceU19">Licence U19</option>
+                                <option value="LicenceU15">Licence U15</option>
+                                <option value="Actif">Actif</option>
+                                <option value="Passif" selected="selected">Passif</option>
+                                <option value="Absent">Absent ou hors LUC</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Frais IC</label>
+                            <select name="frais_IC" class="form-control">
+                                <option value="Oui">Oui</option>
+                                <option value="Non" selected="selected">Non</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Remarque</label>
+                            <input type="text" name="remarque" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Ajouter sur Swissbad</label>
+                            <input type="checkbox" name="add_swissbad" class="form-control" unchecked>
+                        </div>
+                        <button type="submit" name="add_member" class="btn btn-success">Ajouter membre</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- membre List with Edit/Delete Buttons -->
+    <style>
+        .table td, .table th {
+            padding-left: 5px;  /* More specific selector */
+            padding-right: 5px;
+        }
+    </style>
+    <div class="table-responsive">
+        <table class="table table-striped" id="members-table" style="font-size: 12px;">
+            <thead>
+            <tr>
+                <th>#</th>
+                <th>Nom</th>
+                <th>Prénom</th>
+                <th>Email</th>
+                <th>Téléphone</th>
+                <th>Date de naissance</th>
+                <th>Adresse</th>
+                <th>Code postal</th>
+                <th>Ville</th>
+                <th>Genre</th>
+                <th>Nationalité</th>
+                <th>Langue</th>
+                <th>Date d'inscription</th>
+                <th>Statut</th>
+                <th>Détail statut</th>
+                <th>Pourcentage cotisation</th>
+                <th>Statut Swissbad</th>
+                <th>Frais IC</th>
+                <th>Remarque</th>
+                <th>Action</th>
+            </tr>
+            </thead>
+            <tbody>
+            <!-- Data will be loaded here via AJAX -->
+            </tbody>
+        </table>
+    </div>
+
+    <h1>Anciens membres</h1>
+    <table class="table table-striped" id="previous-members-table" style="font-size: 12px;">
+        <thead>
+        <tr>
+            <th>#</th>
+            <th>Nom</th>
+            <th>Prénom</th>
+            <th>Email</th>
+            <th>Téléphone</th>
+            <th>Date de naissance</th>
+            <th>Adresse</th>
+            <th>Code postal</th>
+            <th>Ville</th>
+            <th>Genre</th>
+            <th>Nationalité</th>
+            <th>Langue</th>
+            <th>Date d'inscription</th>
+            <th>Statut</th>
+            <th>Détail statut</th>
+            <th>Pourcentage cotisation</th>
+            <th>Statut Swissbad</th>
+            <th>Frais IC</th>
+            <th>Remarque</th>
+            <th>Action</th>
+        </tr>
+        </thead>
+        <tbody>
+        <!-- Data will be loaded here via AJAX -->
+        </tbody>
+    </table>
+</div>
+
+<!-- Bootstrap JS and dependencies -->
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+
+<script>
+    // Set today's date in the date input field
+    document.addEventListener("DOMContentLoaded", function() {
+        var today = new Date();
+        var year = today.getFullYear();
+        var month = ("0" + (today.getMonth() + 1)).slice(-2); // Add leading zero if needed
+        var day = ("0" + today.getDate()).slice(-2);          // Add leading zero if needed
+        var todayDate = year + "-" + month + "-" + day;
+
+        // Set the value of the date input field
+        document.getElementById('date_inscription').value = todayDate;
+    });
+
+    // Global function to format dates to "dd.mm.yyyy"
+    function formatDate(dateStr) {
+        const date = new Date(dateStr);
+        const day = String(date.getDate()).padStart(2, '0');  // Add leading zero to day
+        const month = String(date.getMonth() + 1).padStart(2, '0');  // Add leading zero to month
+        const year = date.getFullYear();
+        return `${day}.${month}.${year}`;  // Format as dd.mm.yyyy
+    }
+
+    // Function to format dates for HTML date inputs ("yyyy-mm-dd")
+    function formatDateForInput(dateStr) {
+        const date = new Date(dateStr);
+        return date.toISOString().slice(0, 10);  // Returns yyyy-mm-dd
+    }
+
+    // Fetch the list of fields and countries from Flask and pass them to JavaScript
+    const fields = {{ fields|tojson }};
+    const countries = {{ countries|tojson }};
+
+    const hiddenColumns = [5, 6, 7, 8, 9, 10, 11, 12]; // Define hidden columns
+    document.addEventListener("DOMContentLoaded", function () {
+        const currentTable = $('#members-table').DataTable({
+            paging: true,          // Enable pagination
+            searching: true,       // Enable searching
+            ordering: true,        // Enable column ordering
+            order: [[1, 'asc']],   // Default sort by 'Nom' in ascending order
+            columnDefs: [
+                {
+                    searchable: false,
+                    orderable: false,
+                    targets: 0 // Disable ordering on the "#" column
+                },
+                {
+                    searchable: false,
+                    orderable: false,
+                    targets: -1 // Disable ordering on the "Action" column
+                },
+                { visible: false, targets: hiddenColumns }
+            ]
+        });
+
+        // Add buttons to toggle visibility of hidden columns
+        $('#toggle-columns').on('click', function () {
+            hiddenColumns.forEach(index => {
+                let column = currentTable.column(index);
+                column.visible(!column.visible());
+            });
+        });
+
+        // Update the "#" column on order or search
+        currentTable
+            .on('order.dt search.dt', function () {
+                let i = 1; // Reset the counter
+                currentTable
+                    .cells(null, 0, { search: 'applied', order: 'applied' })
+                    .every(function () {
+                        this.data(i++); // Set the new value for each cell in the first column
+                    });
+            })
+            .draw(); // Redraw the table to apply changes
+
+        const previousTable = $('#previous-members-table').DataTable({
+            paging: true,          // Enable pagination
+            searching: true,       // Enable searching
+            ordering: true,        // Enable column ordering
+            order: [[1, 'asc']],   // Default sort by 'Nom' in ascending order
+            columnDefs: [
+                {
+                    searchable: false,
+                    orderable: false,
+                    targets: 0 // Disable ordering on the "#" column
+                },
+                {
+                    searchable: false,
+                    orderable: false,
+                    targets: -1 // Disable ordering on the "Action" column
+                },
+                { visible: false, targets: hiddenColumns }
+            ]
+        });
+
+        // Add buttons to toggle visibility of hidden columns
+        $('#toggle-columns').on('click', function () {
+            hiddenColumns.forEach(index => {
+                let column = previousTable.column(index);
+                column.visible(!column.visible());
+            });
+        });
+
+        // Update the "#" column on order or search
+        previousTable
+            .on('order.dt search.dt', function () {
+                let i = 1; // Reset the counter
+                previousTable
+                    .cells(null, 0, { search: 'applied', order: 'applied' })
+                    .every(function () {
+                        this.data(i++); // Set the new value for each cell in the first column
+                    });
+            })
+            .draw(); // Redraw the table to apply changes
+
+        // Fetch members and populate the current members table
+        fetch('/get_members')
+            .then(response => response.json())
+            .then(data => {
+                const currentRows = [];
+                const previousRows = [];
+                let currentIndex = 1;
+                let previousIndex = 1;
+
+                // Populate current members
+                data.current_members.forEach((member) => {
+                    if (member.membre_actuel === 'Oui') {
+                        const row = [];
+                        row.push(currentIndex++); // Add index
+                        fields.forEach((field) => {
+                            const value = field.includes('date')
+                                ? formatDate(member[field])
+                                : member[field] || '';
+                            row.push(value);
+                        });
+
+                        // Add actions
+                        row.push(`
+                            <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#editmembreModal${member.id}">Editer</button>
+                            <form method="POST" class="d-inline-block">
+                                <input type="hidden" name="id" value="${member.id}">
+                                <button type="submit" name="delete_member" class="btn btn-danger btn-sm">Supprimer</button>
+                            </form>
+                        `);
+
+                        currentRows.push(row);
+
+                        // Dynamically create and append modals for editing
+                        const modalContent = `
+                        <div class="modal fade" id="editmembreModal${member.id}" tabindex="-1" role="dialog" aria-labelledby="editmembreModalLabel${member.id}" aria-hidden="true">
+                            <div class="modal-dialog" role="document">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="editmembreModalLabel${member.id}">Editer membre</h5>
+                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                            <span aria-hidden="true">&times;</span>
+                                        </button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <form method="POST">
+                                            <input type="hidden" name="id" value="${member.id}">
+                                            <div class="form-group">
+                                                <label>Nom</label>
+                                                <input type="text" name="nom" class="form-control" value="${member.nom}" required>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Prénom</label>
+                                                <input type="text" name="prenom" class="form-control" value="${member.prenom}" required>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Email</label>
+                                                <input type="email" name="email" class="form-control" value="${member.email}" required>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Téléphone</label>
+                                                <input type="text" name="telephone" class="form-control" value="${member.telephone}" required>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Date de naissance</label>
+                                                <input type="date" name="date_naissance" class="form-control" value="${formatDateForInput(member.date_naissance)}" required>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Adresse</label>
+                                                <input type="text" name="adresse" class="form-control" value="${member.adresse}">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Code postal</label>
+                                                <input type="text" name="code_postal" class="form-control" value="${member.code_postal}">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Ville</label>
+                                                <input type="text" name="ville" class="form-control" value="${member.ville}">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Genre</label>
+                                                <select name="genre" class="form-control">
+                                                    <option value="Masculin" ${member.genre === 'Masculin' ? 'selected' : ''}>Masculin</option>
+                                                    <option value="Feminin" ${member.genre === 'Feminin' ? 'selected' : ''}>Féminin</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Nationalité</label>
+                                                <select name="nationalite" class="form-control">
+                                                    ${countries.map(country => `
+                                                        <option value="${country}" ${member.nationalite === country ? 'selected' : ''}>${country}</option>
+                                                    `).join('')}
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Langue</label>
+                                                <select name="langue" class="form-control">
+                                                    <option value="Francais" ${member.langue === 'Francais' ? 'selected' : ''}>Français</option>
+                                                    <option value="Anglais" ${member.langue === 'Anglais' ? 'selected' : ''}>Anglais</option>
+                                                    <option value="Allemand" ${member.langue === 'Allemand' ? 'selected' : ''}>Allemand</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Date d'inscription</label>
+                                                <input type="date" name="date_inscription" class="form-control" value="${formatDateForInput(member.date_inscription)}" required>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Statut</label>
+                                                <select name="statut" class="form-control">
+                                                    <option value="Etudiant" ${member.statut === 'Etudiant' ? 'selected' : ''}>Etudiant</option>
+                                                    <option value="Collaborateur" ${member.statut === 'Collaborateur' ? 'selected' : ''}>Collaborateur</option>
+                                                    <option value="Autre" ${member.statut === 'Autre' ? 'selected' : ''}>Autre</option>
+                                                    <option value="Senior" ${member.statut === 'Senior' ? 'selected' : ''}>Senior</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Détail statut</label>
+                                                <input type="text" name="detail_statut" class="form-control" value="${member.detail_statut}">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Pourcentage cotisation</label>
+                                                <select name="pourcentage_cotisation" class="form-control">
+                                                    <option value="100" ${member.pourcentage_cotisation === 100 ? 'selected' : ''}>100%</option>
+                                                    <option value="50" ${member.pourcentage_cotisation === 50 ? 'selected' : ''}>50%</option>
+                                                    <option value="0" ${member.pourcentage_cotisation === 0 ? 'selected' : ''}>0%</option>
+
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Statut Swissbad</label>
+                                                <select name="statut_swissbad" class="form-control">
+                                                    <option value="LicenceAdulte" ${member.statut_swissbad === 'LicenceAdulte' ? 'selected' : ''}>Licence adulte</option>
+                                                    <option value="LicencePlusAdulte" ${member.statut_swissbad === 'LicencePlusAdulte' ? 'selected' : ''}>Licence plus adulte</option>
+                                                    <option value="LicencePlusJunior" ${member.statut_swissbad === 'LicencePlusJunior' ? 'selected' : ''}>Licence plus junior</option>
+                                                    <option value="LicenceU19" ${member.statut_swissbad === 'LicenceU19' ? 'selected' : ''}>Licence U19</option>
+                                                    <option value="LicenceU15" ${member.statut_swissbad === 'LicenceU15' ? 'selected' : ''}>Licence U15</option>
+                                                    <option value="Actif" ${member.statut_swissbad === 'Actif' ? 'selected' : ''}>Actif</option>
+                                                    <option value="Passif" ${member.statut_swissbad === 'Passif' ? 'selected' : ''}>Passif</option>
+                                                    <option value="Absent" ${member.statut_swissbad === 'Absent' ? 'selected' : ''}>Absent ou hors LUC
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Frais IC</label>
+                                                <select name="frais_IC" class="form-control">
+                                                    <option value="Oui" ${member.frais_IC === 'Oui' ? 'selected' : ''}>Oui</option>
+                                                    <option value="Non" ${member.frais_IC === 'Non' ? 'selected' : ''}>Non</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Remarque</label>
+                                                <input type="text" name="remarque" class="form-control" value="${member.remarque}">
+                                            </div>
+                                            <button type="submit" name="edit_member" class="btn btn-primary">Mettre à jour</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                        document.body.insertAdjacentHTML('beforeend', modalContent);
+                    }
+                });
+
+                // Populate previous members
+                data.previous_members.forEach((member) => {
+                    if (member.membre_actuel === 'Non') {
+                        const row = [];
+                        row.push(previousIndex++); // Add index
+                        fields.forEach((field) => {
+                            const value = field.includes('date')
+                                ? formatDate(member[field])
+                                : member[field] || '';
+                            row.push(value);
+                        });
+
+                        // Add actions
+                        row.push(`
+                            <form method="POST" class="d-inline-block">
+                                <input type="hidden" name="id" value="${member.id}">
+                                <button type="submit" name="reregister_member" class="btn btn-success btn-sm">Réinscrire</button>
+                            </form>
+                            <form method="POST" class="d-inline-block">
+                                <input type="hidden" name="id" value="${member.id}">
+                                <button type="submit" name="permanently_delete_member" class="btn btn-danger btn-sm">Supprimer définitivement</button>
+                            </form>
+                        `);
+
+                        previousRows.push(row);
+                    }
+                });
+
+                // Add rows to DataTables
+                currentTable.rows.add(currentRows).draw();
+                previousTable.rows.add(previousRows).draw();
+            });
+    });
+</script>
